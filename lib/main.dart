@@ -1,8 +1,197 @@
-import 'package:flutter/material.dart';
-import 'package:sourbuddy/dough.dart';
+import 'dart:convert';
 
-void main() {
-  runApp(const MyApp());
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:sourbuddy/dough.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  sqfliteFfiInit();
+  final db = databaseFactoryFfi.openDatabase("./dough.sqlite");
+  db.then((db) {
+    db.execute('''
+CREATE TABLE IF NOT EXISTS dough (
+  id INTEGER PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  weight REAL NOT NULL,
+  last_fed TEXT NOT NULL
+)
+''');
+    db.execute('''
+CREATE TABLE IF NOT EXISTS event (
+  id INTEGER PRIMARY KEY NOT NULL,
+  dough_id INTEGER NOT NULL,
+  type TEXT NOT NULL,               -- event type
+  timestamp TEXT NOT NULL,
+  weight_modifier REAL NOT NULL,    -- for easy calculations, we just store the difference in the weight
+  json_payload TEXT NOT NULL,       -- additional JSON data
+  FOREIGN KEY(dough_id) REFERENCES dough(id)
+)
+''');
+  });
+
+  runApp(ChangeNotifierProvider(
+    create: (ctx) => AppState(doughService: DoughService(db: db)),
+    child: const MyApp(),
+  ));
+}
+
+class DoughService {
+  final Future<Database> _db;
+  const DoughService({required db}) : _db = db;
+
+  Future<Iterable<Dough>> listDoughs() async {
+    var doughs = await (await _db).query('dough');
+    return doughs.map((doughMap) {
+      debugPrint(doughMap.toString());
+      return Dough(
+        id: doughMap['id'] as int,
+        name: doughMap['name'] as String,
+        type: doughMap['type'] as String,
+        weight: doughMap['weight'] as double,
+        lastFed: DateTime.parse(doughMap['last_fed'] as String),
+      );
+    });
+  }
+
+  Future<Iterable<DoughEvent>> listEvents(int doughId) async {
+    var events = await (await _db).query('event',
+        where: '"dough_id" = ?',
+        whereArgs: [doughId],
+        orderBy: 'timestamp desc');
+    return events.map((eventMap) {
+      var eventType = DoughEventType.from(
+        eventMap['type'] as String,
+      );
+      var payload;
+      if (eventType == DoughEventType.feeding) {
+        payload = Feeding.fromJson(
+            jsonDecode(payload = eventMap['json_payload'] as String));
+      } else if (eventType == DoughEventType.created) {
+        payload = Created.fromJson(
+            jsonDecode(payload = eventMap['json_payload'] as String));
+      } else if (eventType == DoughEventType.removed) {
+        payload = Created.fromJson(
+            jsonDecode(payload = eventMap['json_payload'] as String));
+      }
+
+      return DoughEvent(
+          id: eventMap['id'] as int,
+          type: eventType,
+          timestamp: DateTime.parse(eventMap['timestamp'] as String),
+          weightModifier: eventMap['weight_modifier'] as double,
+          payload: payload);
+    });
+  }
+}
+
+class AppState extends ChangeNotifier {
+  bool loading = true;
+  Map<int, Dough> doughs = {};
+  Map<int, List<DoughEvent>> doughEvents = {};
+  final DoughService _doughService;
+
+  AppState({required doughService}) : _doughService = doughService {
+    init();
+  }
+
+  init() async {
+    var doughs = await _doughService.listDoughs();
+    this.doughs.clear();
+    for (Dough dough in doughs) {
+      this.doughs[dough.id] = dough;
+    }
+    loading = false;
+    notifyListeners();
+  }
+
+  loadDoughEvents(int doughId) async {
+    doughEvents[doughId] = (await _doughService.listEvents(doughId)).toList();
+    notifyListeners();
+  }
+}
+
+class Dough {
+  final int id;
+  final String name;
+  final String type;
+  final double weight;
+  final DateTime lastFed;
+
+  Dough({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.weight,
+    required this.lastFed,
+  });
+}
+
+class DoughEvent<T> {
+  final int id;
+  final DoughEventType type;
+  final DateTime timestamp;
+  final double weightModifier;
+  final T payload;
+
+  DoughEvent(
+      {required this.id,
+      required this.type,
+      required this.timestamp,
+      required this.weightModifier,
+      required this.payload});
+}
+
+class Feeding {
+  final Duration duration;
+  Feeding({required this.duration});
+
+  Feeding.fromJson(Map<String, dynamic> json)
+      : duration = Duration(seconds: json['duration'] ?? 0);
+}
+
+class Created {
+  Created();
+
+  Created.fromJson(Map<String, dynamic> json);
+}
+
+class Removed {
+  Removed();
+
+  Removed.fromJson(Map<String, dynamic> json);
+}
+
+enum DoughEventType {
+  feeding(friendlyName: 'Teig gefüttert'),
+  removed(friendlyName: 'Teil des Teiges entnommen'),
+  created(friendlyName: 'Neuer Teig');
+
+  const DoughEventType({required this.friendlyName});
+
+  final String friendlyName;
+  static DoughEventType from(String name) {
+    switch (name) {
+      case 'feeding':
+        return DoughEventType.feeding;
+      case 'removed':
+        return DoughEventType.removed;
+      case 'created':
+        return DoughEventType.created;
+      default:
+        throw 'unknown DoughEventType';
+    }
+  }
+}
+
+enum LoadingState {
+  notLoaded,
+  loading,
+  loaded,
 }
 
 class MyApp extends StatelessWidget {
@@ -76,4 +265,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
