@@ -67,24 +67,56 @@ class DoughService {
       var eventType = DoughEventType.from(
         eventMap['type'] as String,
       );
-      var payload;
+      DoughEventPayload payload;
       if (eventType == DoughEventType.feeding) {
-        payload = Feeding.fromJson(
-            jsonDecode(payload = eventMap['json_payload'] as String));
+        payload =
+            Feeding.fromJson(jsonDecode(eventMap['json_payload'] as String));
       } else if (eventType == DoughEventType.created) {
-        payload = Created.fromJson(
-            jsonDecode(payload = eventMap['json_payload'] as String));
+        payload =
+            Created.fromJson(jsonDecode(eventMap['json_payload'] as String));
       } else if (eventType == DoughEventType.removed) {
-        payload = Created.fromJson(
-            jsonDecode(payload = eventMap['json_payload'] as String));
+        payload =
+            Created.fromJson(jsonDecode(eventMap['json_payload'] as String));
+      } else {
+        throw 'unknown!';
       }
 
       return DoughEvent(
-          id: eventMap['id'] as int,
-          type: eventType,
-          timestamp: DateTime.parse(eventMap['timestamp'] as String),
-          weightModifier: eventMap['weight_modifier'] as double,
-          payload: payload);
+        id: eventMap['id'] as int,
+        type: eventType,
+        timestamp: DateTime.parse(eventMap['timestamp'] as String),
+        weightModifier: eventMap['weight_modifier'] as double,
+        payload: payload,
+      );
+    });
+  }
+
+  Future<void> addEvent(Dough dough, DoughEvent event) async {
+    (await _db).transaction((txn) async {
+      txn.insert('event', {
+        "id": event.id,
+        "dough_id": dough.id,
+        "type": event.type.name,
+        "timestamp": event.timestamp.toIso8601String(),
+        "weight_modifier": event.weightModifier,
+        "json_payload": jsonEncode(event.payload.toJson()),
+      });
+
+      final oldDough = Dough.fromMap(
+          (await txn.query('dough', where: "id = ?", whereArgs: [dough.id]))
+              .first);
+      final Map<String, dynamic> values = {
+        'weight': oldDough.weight + event.weightModifier
+      };
+      if (event.type == DoughEventType.feeding) {
+        values['last_fed'] = event.timestamp.toIso8601String();
+      }
+      txn.update(
+        'dough',
+        values,
+        where: "id = ?",
+        whereArgs: [dough.id],
+      );
     });
   }
 }
@@ -100,6 +132,10 @@ class AppState extends ChangeNotifier {
   }
 
   init() async {
+    loadDoughs();
+  }
+
+  loadDoughs() async {
     var doughs = await _doughService.listDoughs();
     this.doughs.clear();
     for (Dough dough in doughs) {
@@ -112,6 +148,13 @@ class AppState extends ChangeNotifier {
   loadDoughEvents(int doughId) async {
     doughEvents[doughId] = (await _doughService.listEvents(doughId)).toList();
     notifyListeners();
+  }
+
+  Future<void> addDoughEvent(Dough dough, DoughEvent event) async {
+    await _doughService.addEvent(dough, event);
+    // Invalidate dough and it's events
+    loadDoughs();
+    loadDoughEvents(dough.id);
   }
 }
 
@@ -129,41 +172,69 @@ class Dough {
     required this.weight,
     required this.lastFed,
   });
+
+  Dough.fromMap(Map<String, Object?> map)
+      : id = map['id'] as int,
+        name = map['name'] as String,
+        type = map['type'] as String,
+        weight = map['weight'] as double,
+        lastFed = DateTime.parse(map['last_fed'] as String);
 }
 
-class DoughEvent<T> {
-  final int id;
+class DoughEvent<T extends DoughEventPayload> {
+  final int? id;
   final DoughEventType type;
   final DateTime timestamp;
   final double weightModifier;
   final T payload;
 
   DoughEvent(
-      {required this.id,
+      {this.id,
       required this.type,
       required this.timestamp,
       required this.weightModifier,
       required this.payload});
 }
 
-class Feeding {
+abstract class DoughEventPayload {
+  Map<String, dynamic> toJson();
+}
+
+class Feeding extends DoughEventPayload {
   final Duration duration;
   Feeding({required this.duration});
 
   Feeding.fromJson(Map<String, dynamic> json)
       : duration = Duration(seconds: json['duration'] ?? 0);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      "duration": duration.inSeconds,
+    };
+  }
 }
 
-class Created {
+class Created extends DoughEventPayload {
   Created();
 
   Created.fromJson(Map<String, dynamic> json);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {};
+  }
 }
 
-class Removed {
+class Removed extends DoughEventPayload {
   Removed();
 
   Removed.fromJson(Map<String, dynamic> json);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {};
+  }
 }
 
 enum DoughEventType {
