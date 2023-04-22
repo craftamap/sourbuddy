@@ -4,12 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:sourbuddy/main.dart';
 import 'package:sourbuddy/shared.dart';
 
-String _printDuration(Duration duration) {
+String printDuration(Duration duration) {
   duration = duration.abs();
   String twoDigits(int n) => n.toString().padLeft(2, "0");
   String twoDigitsHours = twoDigits(duration.inHours.remainder(24));
   String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-  return "${duration.inDays}d $twoDigitsHours:$twoDigitMinutes";
+  String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+  return "${duration.inDays}d $twoDigitsHours:${twoDigitMinutes}:${twoDigitSeconds}h";
 }
 
 class DoughsOverview extends StatelessWidget {
@@ -64,7 +65,7 @@ class DoughsOverview extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    "Zuletzt gefüttert: ${_printDuration(dough.lastFed.difference(DateTime.now()))}",
+                    "Zuletzt gefüttert: ${printDuration(dough.lastFed.difference(DateTime.now()))}",
                     style: DefaultTextStyle.of(context)
                         .style
                         .apply(color: Theme.of(context).hintColor),
@@ -145,7 +146,7 @@ class _DoughDetailsState extends State<DoughDetails> {
                   ),
                   const Spacer(),
                   Text(
-                    "Zuletzt gefüttert: ${_printDuration(dough.lastFed.difference(DateTime.now()))}",
+                    "Zuletzt gefüttert: ${printDuration(dough.lastFed.difference(DateTime.now()))}",
                     style: DefaultTextStyle.of(context)
                         .style
                         .apply(color: Theme.of(context).hintColor),

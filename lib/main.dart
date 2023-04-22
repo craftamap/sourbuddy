@@ -1,17 +1,26 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sourbuddy/dough.dart';
+import 'package:sourbuddy/shared.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  sqfliteFfiInit();
-  final db = databaseFactoryFfi.openDatabase("./dough.sqlite");
-  db.then((db) {
+  Future<Database>? db;
+  if (defaultTargetPlatform == TargetPlatform.linux) {
+    sqfliteFfiInit();
+    db = databaseFactoryFfi.openDatabase("./dough.sqlite");
+  } else {
+    final path = "${await getDatabasesPath()}/dough.sqlite";
+    debugPrint(path);
+    db = databaseFactory.openDatabase(path);
+  }
+  db.then((db) async {
     db.execute('''
 CREATE TABLE IF NOT EXISTS dough (
   id INTEGER PRIMARY KEY NOT NULL,
@@ -32,10 +41,69 @@ CREATE TABLE IF NOT EXISTS event (
   FOREIGN KEY(dough_id) REFERENCES dough(id)
 )
 ''');
+    db.execute('''
+CREATE TABLE IF NOT EXISTS timer (
+  id INTEGER PRIMARY KEY NOT NULL,
+  type TEXT NOT NULL,                           -- timer type
+  timestamp TEXT NOT NULL,                      -- when the timer should ring
+  created TEXT NOT NULL,                        -- when the timer was created 
+  dough_id INTEGER,
+  event_id INTEGER,
+  FOREIGN KEY(dough_id) REFERENCES dough(id),
+  FOREIGN KEY(event_id) REFERENCES event(id)
+)
+''');
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      db.execute(
+          '''INSERT INTO "dough" VALUES (1,'Feuchte Mirjam','Roggenmehl',40.0,'2023-04-16T12:03:47.679300')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (1,1,'created','2022-12-24',120.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (2,1,'feeding','2023-04-09T20:45:32+0000',0.0,'{"duration": 43200}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (3,1,'feeding','2023-04-10T00:00:00Z',-10.0,'{"duration": 10}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (4,1,'removed','2023-04-11T20:20:20Z',-20.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (5,1,'removed','2023-04-13T21:59:41.514746',-42.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (6,1,'removed','2023-04-13T22:02:01.907061',-42.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (7,1,'removed','2023-04-13T22:40:10.772148',-20.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (8,1,'removed','2023-04-13T22:49:51.244408',-30.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (9,1,'removed','2023-04-13T22:50:17.785345',-20.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (10,1,'removed','2023-04-13T22:50:34.976882',-100.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (11,1,'removed','2023-04-13T22:59:56.124684',-200.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (12,1,'removed','2023-04-15T14:31:07.177018',0.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (13,1,'removed','2023-04-16T11:06:22.618330',0.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (14,1,'removed','2023-04-16T11:08:07.483234',0.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (15,1,'feeding','2023-04-16T11:23:31.478588',0.0,'{"duration":43200}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (16,1,'feeding','2023-04-16T11:26:41.590265',0.0,'{"duration":43200}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (17,1,'feeding','2023-04-16T11:26:57.780740',20.0,'{"duration":43200}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (18,1,'feeding','2023-04-16T11:32:43.845470',-60.0,'{"duration":43200}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (19,1,'feeding','2023-04-16T12:03:47.679300',60.0,'{"duration":43200}')''');
+      db.execute(
+          '''INSERT INTO "event" VALUES (20,1,'removed','2023-04-16T12:04:04.674326',-20.0,'{}')''');
+      db.execute(
+          '''INSERT INTO "timer" VALUES (1,'feeding','2023-04-21T12:00:00Z','2023-04-18T22:52:00Z',NULL,NULL)''');
+    }
   });
 
   runApp(ChangeNotifierProvider(
-    create: (ctx) => AppState(doughService: DoughService(db: db)),
+    create: (ctx) => AppState(
+        doughService: DoughService(db: db), timerService: TimerService(db: db)),
     child: const MyApp(),
   ));
 }
@@ -48,13 +116,7 @@ class DoughService {
     var doughs = await (await _db).query('dough');
     return doughs.map((doughMap) {
       debugPrint(doughMap.toString());
-      return Dough(
-        id: doughMap['id'] as int,
-        name: doughMap['name'] as String,
-        type: doughMap['type'] as String,
-        weight: doughMap['weight'] as double,
-        lastFed: DateTime.parse(doughMap['last_fed'] as String),
-      );
+      return Dough.fromMap(doughMap);
     });
   }
 
@@ -121,18 +183,35 @@ class DoughService {
   }
 }
 
+class TimerService {
+  final Future<Database> _db;
+  const TimerService({required db}) : _db = db;
+
+  Future<List<Timer>> listTimers() async {
+    var timers = await (await _db).query('timer');
+    return timers.map((timerMap) {
+      return Timer.fromMap(timerMap);
+    }).toList();
+  }
+}
+
 class AppState extends ChangeNotifier {
   bool loading = true;
   Map<int, Dough> doughs = {};
   Map<int, List<DoughEvent>> doughEvents = {};
+  Map<int, Timer> timers = {};
   final DoughService _doughService;
+  final TimerService _timerService;
 
-  AppState({required doughService}) : _doughService = doughService {
+  AppState({required doughService, required timerService})
+      : _doughService = doughService,
+        _timerService = timerService {
     init();
   }
 
   init() async {
     loadDoughs();
+    loadTimers();
   }
 
   loadDoughs() async {
@@ -155,6 +234,15 @@ class AppState extends ChangeNotifier {
     // Invalidate dough and it's events
     loadDoughs();
     loadDoughEvents(dough.id);
+  }
+
+  loadTimers() async {
+    final timers = await _timerService.listTimers();
+    this.timers.clear();
+    for (Timer timer in timers) {
+      this.timers[timer.id] = timer;
+    }
+    notifyListeners();
   }
 }
 
@@ -265,6 +353,30 @@ enum LoadingState {
   loaded,
 }
 
+class Timer {
+  int id;
+  DoughEventType type;
+  DateTime timestamp;
+  DateTime created;
+  int? doughId;
+  int? eventId;
+  Timer(
+      {required this.id,
+      required this.type,
+      required this.timestamp,
+      required this.created,
+      required this.doughId,
+      required this.eventId});
+
+  Timer.fromMap(Map<String, Object?> map)
+      : id = map["id"] as int,
+        type = DoughEventType.from(map["type"] as String),
+        timestamp = DateTime.parse(map["timestamp"] as String),
+        created = DateTime.parse(map["created"] as String),
+        doughId = map["dough_id"] as int?,
+        eventId = map["event_id"] as int?;
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -313,7 +425,7 @@ class _HomePageState extends State<HomePage> {
       child: DoughsOverview(),
     ),
     const Center(
-      child: Text('bar'),
+      child: TimerOverview(),
     ),
   ];
 
@@ -333,6 +445,50 @@ class _HomePageState extends State<HomePage> {
         BottomNavigationBarItem(icon: Icon(Icons.science), label: "Doughs"),
         BottomNavigationBarItem(icon: Icon(Icons.timer), label: "Timers"),
       ], currentIndex: _navigationIndex, onTap: _onNavigationItemTapped),
+    );
+  }
+}
+
+class TimerOverview extends StatefulWidget {
+  const TimerOverview({super.key});
+
+  @override
+  State<TimerOverview> createState() => _TimerOverviewState();
+}
+
+class _TimerOverviewState extends State<TimerOverview> {
+  @override
+  void initState() {
+    var reload;
+    reload = () {
+      setState(() {});
+      Future.delayed(Duration(seconds: 2), reload);
+    };
+    reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    List<Timer> timers =
+        context.select((AppState state) => state.timers).values.toList();
+
+    return Column(
+      children: timers.map((timer) {
+        return PaddedCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text("Noch"),
+              Text(
+                "${printDuration(timer.timestamp.difference(DateTime.now()))}",
+                style:
+                    DefaultTextStyle.of(context).style.apply(fontSizeFactor: 2),
+              ),
+              Text("bis ${timer.type.friendlyName}")
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

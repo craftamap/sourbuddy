@@ -9,7 +9,7 @@ class PaddedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 4,
       margin: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 8),
       child: InkWell(
         onTap: onTap,
