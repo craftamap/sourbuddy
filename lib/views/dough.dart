@@ -1,17 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:sourbuddy/db.dart';
 import 'package:sourbuddy/main.dart';
 import 'package:sourbuddy/shared.dart';
-
-String printDuration(Duration duration) {
-  duration = duration.abs();
-  String twoDigits(int n) => n.toString().padLeft(2, "0");
-  String twoDigitsHours = twoDigits(duration.inHours.remainder(24));
-  String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-  String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-  return "${duration.inDays}d $twoDigitsHours:${twoDigitMinutes}:${twoDigitSeconds}h";
-}
 
 class DoughsOverview extends StatelessWidget {
   const DoughsOverview({super.key});
@@ -220,6 +212,28 @@ class CreateDoughEvent extends StatefulWidget {
   State<CreateDoughEvent> createState() => _CreateDoughEventState();
 }
 
+Future<DateTime?> pickDateTime(BuildContext context,
+    {DateTime? current}) async {
+  final date = await showDatePicker(
+      context: context,
+      initialDate: current ?? DateTime.now(),
+      firstDate: DateTime.fromMillisecondsSinceEpoch(0),
+      lastDate: DateTime.parse("2099-12-31"));
+  if (date == null) {
+    return null;
+  }
+  if (context.mounted) {
+    final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(current ?? DateTime.now()));
+    if (time == null) {
+      return null;
+    }
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute, 0);
+  }
+  return null;
+}
+
 class _CreateDoughEventState extends State<CreateDoughEvent> {
   final TextEditingController _doughRemovedC =
       TextEditingController(text: "0.0 g");
@@ -256,23 +270,8 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
             Text("Date: ${formData.timestamp ?? 'now'}"),
             IconButton(
                 onPressed: () {
-                  showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime.fromMillisecondsSinceEpoch(0),
-                          lastDate: DateTime.parse("2099-12-31"))
-                      .then((date) async {
-                    if (date == null) {
-                      return;
-                    }
-                    final time = await showTimePicker(
-                        context: context, initialTime: TimeOfDay.now());
-                    if (time == null) {
-                      return;
-                    }
-                    final timestamp = DateTime(date.year, date.month, date.day,
-                        time.hour, time.minute, time.hour);
-                    formData.timestamp = timestamp;
+                  pickDateTime(context).then((datetime) {
+                    formData.timestamp = datetime;
                   });
                 },
                 icon: Icon(Icons.calendar_month))
@@ -310,6 +309,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
                 } catch (e) {
                   newWeight = 0.0;
                 }
+                debugPrint("$value, $newWeight");
                 context.read<CreateDoughEventFormData>().removedWeight =
                     newWeight;
                 _doughRemovedC.value = _doughRemovedC.value.copyWith(
@@ -584,5 +584,198 @@ class CreateDoughEventPage extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class CreateDoughPage extends StatelessWidget {
+  const CreateDoughPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ButtonStyle style = TextButton.styleFrom(
+      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    );
+    return ChangeNotifierProvider(
+      create: (_) {
+        final appState = context.read<AppState>();
+        return CreateDoughFormData(appState: appState);
+      },
+      builder: (context, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Neuer Teig'),
+            actions: [
+              TextButton(
+                  style: style,
+                  onPressed: () {
+                    context.read<CreateDoughFormData>().addDough();
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Create'))
+            ],
+          ),
+          body: const CreateDoughForm(),
+        );
+      },
+    );
+  }
+}
+
+class CreateDoughFormData extends ChangeNotifier {
+  AppState appState;
+
+  CreateDoughFormData({required this.appState});
+
+  addDough() {
+    appState.addDough(Dough(
+        id: -1,
+        name: name,
+        type: type,
+        weight: weight,
+        lastFed: _ownedTimestamp));
+  }
+
+  String _name = "";
+  String get name => _name;
+  set name(String name) {
+    _name = name;
+    notifyListeners();
+  }
+
+  String _type = "";
+  String get type => _type;
+  set type(String type) {
+    _type = type;
+    notifyListeners();
+  }
+
+  DateTime _ownedTimestamp = DateTime.now();
+  DateTime get ownedTimestamp => _ownedTimestamp;
+  set ownedTimestamp(DateTime ownedTimestamp) {
+    _ownedTimestamp = ownedTimestamp;
+    notifyListeners();
+  }
+
+  double _weight = 0.0;
+  double get weight => _weight;
+  set weight(double weight) {
+    _weight = weight;
+    notifyListeners();
+  }
+
+  bool _createTimer = true;
+  bool get createTimer => _createTimer;
+  set createTimer(bool v) {
+    _createTimer = v;
+    notifyListeners();
+  }
+
+  DateTime _nextFeedTimestamp = DateTime.now().add(const Duration(days: 7));
+  DateTime get nextFeedTimestamp => _nextFeedTimestamp;
+  set nextFeedTimestamp(DateTime v) {
+    _nextFeedTimestamp = v;
+    notifyListeners();
+  }
+}
+
+class CreateDoughForm extends StatefulWidget {
+  const CreateDoughForm({super.key});
+
+  @override
+  State<CreateDoughForm> createState() => _CreateDoughFormState();
+}
+
+class _CreateDoughFormState extends State<CreateDoughForm> {
+  final _weightC = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    final weight = context.read<CreateDoughFormData>().weight;
+    _weightC.value = _weightC.value.copyWith(text: "$weight g");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final formData = context.watch<CreateDoughFormData>();
+    return Container(
+        margin: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Name des Teiges',
+              ),
+              onChanged: (v) {
+                formData.name = v;
+              },
+            ),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Mehlart',
+              ),
+              onChanged: (v) {
+                formData.type = v;
+              },
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                    "Du hast deinen Sauerteig seit: ${formData.ownedTimestamp}"),
+                IconButton(
+                    onPressed: () {
+                      pickDateTime(context, current: formData.ownedTimestamp)
+                          .then((datetime) {
+                        formData.ownedTimestamp = datetime ?? DateTime.now();
+                      });
+                    },
+                    icon: const Icon(Icons.calendar_month))
+              ],
+            ),
+            TextFormField(
+              decoration: const InputDecoration(labelText: 'Aktuelles Gewicht'),
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))
+              ],
+              controller: _weightC,
+              onChanged: (v) {
+                double newWeight = 0.0;
+                try {
+                  newWeight = double.parse(v);
+                } catch (_) {
+                  newWeight = 0;
+                }
+                debugPrint("$v, $newWeight");
+                formData.weight = newWeight;
+                _weightC.value = _weightC.value.copyWith(
+                  text: "$newWeight g",
+                );
+              },
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Checkbox(
+                    value: formData.createTimer,
+                    onChanged: (v) {
+                      formData.createTimer = v ?? false;
+                    }),
+                Expanded(
+                    child: Text(
+                        "Erinnere mich am ${formData.nextFeedTimestamp} den Teig zu füttern")),
+                IconButton(
+                    onPressed: () {
+                      pickDateTime(context, current: formData.nextFeedTimestamp)
+                          .then((datetime) {
+                        formData.nextFeedTimestamp = datetime ?? DateTime.now();
+                      });
+                    },
+                    icon: const Icon(Icons.calendar_month))
+              ],
+            ),
+          ],
+        ));
   }
 }

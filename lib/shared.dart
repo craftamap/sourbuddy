@@ -1,5 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+
+String printDuration(Duration duration,
+    {bool absolute = true, bool seconds = false}) {
+  if (absolute) {
+    duration = duration.abs();
+  }
+  String twoDigits(int n) => n.toString().padLeft(2, "0");
+  String twoDigitsHours = twoDigits(duration.inHours.remainder(24).abs());
+  String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60).abs());
+  String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60).abs());
+  return "${duration.inDays}d $twoDigitsHours:${twoDigitMinutes}h";
+}
 
 class PaddedCard extends StatelessWidget {
   Widget child;
