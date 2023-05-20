@@ -1,18 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:sourbuddy/db.dart';
 import 'package:sourbuddy/views/dough.dart';
 import 'package:sourbuddy/views/timer.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final db = getDatabase();
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  flutterLocalNotificationsPlugin.initialize(const InitializationSettings(
+      android: AndroidInitializationSettings('app_icon')));
+
+  tz.initializeTimeZones();
 
   runApp(ChangeNotifierProvider(
     create: (ctx) => AppState(
-        doughRepository: DoughRepository(db: db),
-        timerRepository: TimerService(db: db)),
+      doughRepository: DoughRepository(db: db),
+      timerRepository: TimerRepository(db: db),
+      notificationsPlugin: flutterLocalNotificationsPlugin,
+    ),
     child: const MyApp(),
   ));
 }
@@ -23,15 +35,24 @@ class AppState extends ChangeNotifier {
   Map<int, List<DoughEvent>> doughEvents = {};
   Map<int, Timer> timers = {};
   final DoughRepository _doughRepository;
-  final TimerService _timerRepository;
+  final TimerRepository _timerRepository;
+  final FlutterLocalNotificationsPlugin _notificationsPlugin;
 
-  AppState({required doughRepository, required timerRepository})
+  AppState(
+      {required doughRepository,
+      required timerRepository,
+      required notificationsPlugin})
       : _doughRepository = doughRepository,
-        _timerRepository = timerRepository {
+        _timerRepository = timerRepository,
+        _notificationsPlugin = notificationsPlugin {
     init();
   }
 
   init() async {
+    _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestPermission();
     loadDoughs();
     loadTimers();
   }
@@ -47,15 +68,17 @@ class AppState extends ChangeNotifier {
   }
 
   loadDoughEvents(int doughId) async {
-    doughEvents[doughId] = (await _doughRepository.listEvents(doughId)).toList();
+    doughEvents[doughId] =
+        (await _doughRepository.listEvents(doughId)).toList();
     notifyListeners();
   }
 
-  Future<void> addDoughEvent(Dough dough, DoughEvent event) async {
-    await _doughRepository.addEvent(dough, event);
+  Future<int> addDoughEvent(Dough dough, DoughEvent event) async {
+    final id = await _doughRepository.addEvent(dough, event);
     // Invalidate dough and it's events
     loadDoughs();
     loadDoughEvents(dough.id);
+    return id;
   }
 
   loadTimers() async {
@@ -67,10 +90,56 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addDough(Dough dough) async {
+  void addDough(Dough dough, double initialWeight) async {
     debugPrint("$dough");
-    await _doughRepository.addDough(dough);
+    int id = await _doughRepository.addDough(dough.copyWith(weight: 0));
+    await loadDoughs();
+    final dbDough = doughs[id]!;
+    await _doughRepository.addEvent(
+        dbDough,
+        DoughEvent(
+            type: DoughEventType.created,
+            timestamp: dough.lastFed,
+            weightModifier: initialWeight,
+            payload: Created()));
     loadDoughs();
+    loadDoughEvents(dough.id);
+    notifyListeners();
+  }
+
+  void deleteDough(Dough dough) async {
+    debugPrint("$dough");
+    await _doughRepository.deleteDough(dough);
+    loadDoughs();
+    notifyListeners();
+  }
+
+  void deleteDoughEvent(Dough dough, DoughEvent doughEvent) async {
+    await _doughRepository.deleteEvent(dough, doughEvent);
+    loadDoughEvents(dough.id);
+    loadDoughs();
+    notifyListeners();
+  }
+
+  void addTimer(Timer timer) async {
+    final id = await _timerRepository.addTimer(timer);
+    await loadTimers();
+    _notificationsPlugin.zonedSchedule(
+        id,
+        "Teigalarm",
+        "",
+        tz.TZDateTime.from(timer.timestamp, tz.getLocation("Europe/Berlin")),
+        const NotificationDetails(
+            android: AndroidNotificationDetails("dough_alert", "Teigalarm")),
+        androidScheduleMode: AndroidScheduleMode.inexact,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime);
+  }
+
+  void deleteTimer(Timer timer) async {
+    await _notificationsPlugin.cancel(timer.id);
+    await _timerRepository.deleteTimer(timer);
+    await loadTimers();
   }
 }
 
@@ -88,6 +157,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SourBuddy',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -151,7 +221,16 @@ class _HomePageState extends State<HomePage> {
               },
               child: Icon(Icons.add))
           : FloatingActionButton(
-              onPressed: () {}, child: Icon(Icons.add_alarm)),
+              onPressed: () {
+                context.read<AppState>().addTimer(Timer(
+                    id: -1,
+                    type: TimerType.finishFeeding,
+                    timestamp: DateTime.now().add(Duration(seconds: 10)),
+                    created: DateTime.now(),
+                    doughId: 0,
+                    eventId: 0));
+              },
+              child: Icon(Icons.add_alarm)),
       bottomNavigationBar:
           BottomNavigationBar(items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(icon: Icon(Icons.science), label: "Doughs"),

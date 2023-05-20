@@ -11,22 +11,23 @@ Future<Database> getDatabase() async {
     db = databaseFactoryFfi.openDatabase("./dough.sqlite");
   } else {
     final path = "${await getDatabasesPath()}/dough.sqlite";
-    debugPrint(path);
+    debugPrint("path $path");
     db = databaseFactory.openDatabase(path);
   }
-  db.then((db) async {
-    db.execute('''
+
+  return db.then((db) async {
+    await db.execute('''
 CREATE TABLE IF NOT EXISTS dough (
-  id INTEGER PRIMARY KEY NOT NULL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   type TEXT NOT NULL,
   weight REAL NOT NULL,
   last_fed TEXT NOT NULL
 )
 ''');
-    db.execute('''
+    await db.execute('''
 CREATE TABLE IF NOT EXISTS event (
-  id INTEGER PRIMARY KEY NOT NULL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   dough_id INTEGER NOT NULL,
   type TEXT NOT NULL,               -- event type
   timestamp TEXT NOT NULL,
@@ -35,9 +36,10 @@ CREATE TABLE IF NOT EXISTS event (
   FOREIGN KEY(dough_id) REFERENCES dough(id)
 )
 ''');
-    db.execute('''
+    debugPrint('table pls?');
+    await db.execute('''
 CREATE TABLE IF NOT EXISTS timer (
-  id INTEGER PRIMARY KEY NOT NULL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT NOT NULL,                           -- timer type
   timestamp TEXT NOT NULL,                      -- when the timer should ring
   created TEXT NOT NULL,                        -- when the timer was created 
@@ -47,9 +49,9 @@ CREATE TABLE IF NOT EXISTS timer (
   FOREIGN KEY(event_id) REFERENCES event(id)
 )
 ''');
-  });
 
-  return db;
+    return db;
+  });
 }
 
 class DoughRepository {
@@ -97,16 +99,11 @@ class DoughRepository {
     });
   }
 
-  Future<void> addEvent(Dough dough, DoughEvent event) async {
-    (await _db).transaction((txn) async {
-      txn.insert('event', {
-        "id": event.id,
-        "dough_id": dough.id,
-        "type": event.type.name,
-        "timestamp": event.timestamp.toIso8601String(),
-        "weight_modifier": event.weightModifier,
-        "json_payload": jsonEncode(event.payload.toJson()),
-      });
+  Future<int> addEvent(Dough dough, DoughEvent event) async {
+    return (await _db).transaction((txn) async {
+      final eventMap = event.toMap(dough.id);
+      eventMap.remove("id");
+      final eventId = await txn.insert('event', eventMap);
 
       final oldDough = Dough.fromMap(
           (await txn.query('dough', where: "id = ?", whereArgs: [dough.id]))
@@ -117,6 +114,38 @@ class DoughRepository {
       if (event.type == DoughEventType.feeding) {
         values['last_fed'] = event.timestamp.toIso8601String();
       }
+      await txn.update(
+        'dough',
+        values,
+        where: "id = ?",
+        whereArgs: [dough.id],
+      );
+
+      return eventId;
+    });
+  }
+
+  Future<int> addDough(Dough dough) async {
+    final mappedDough = dough.toMap();
+    mappedDough.remove("id");
+    return await (await _db).insert("dough", mappedDough);
+  }
+
+  Future<void> deleteDough(Dough dough) async {
+    await (await _db).delete("dough", where: "id = ?", whereArgs: [dough.id]);
+  }
+
+  Future<void> deleteEvent(Dough dough, DoughEvent event) async {
+    (await _db).transaction((txn) async {
+      await txn.delete("event", where: "id = ?", whereArgs: [event.id]);
+
+      final oldDough = Dough.fromMap(
+          (await txn.query('dough', where: "id = ?", whereArgs: [dough.id]))
+              .first);
+      final Map<String, dynamic> values = {
+        'weight': oldDough.weight - event.weightModifier
+      };
+      // FIXME: in case a feeding event is deleted, search for last last_fed timestamp and apply it's date
       txn.update(
         'dough',
         values,
@@ -125,23 +154,27 @@ class DoughRepository {
       );
     });
   }
-
-  Future<void> addDough(Dough dough) async {
-    final mappedDough = dough.toMap();
-    mappedDough.remove("id");
-    (await _db).insert("dough", mappedDough);
-  }
 }
 
-class TimerService {
+class TimerRepository {
   final Future<Database> _db;
-  const TimerService({required db}) : _db = db;
+  const TimerRepository({required db}) : _db = db;
 
   Future<List<Timer>> listTimers() async {
     var timers = await (await _db).query('timer');
     return timers.map((timerMap) {
       return Timer.fromMap(timerMap);
     }).toList();
+  }
+
+  Future<int> addTimer(Timer timer) async {
+    final map = timer.toMap();
+    map.remove("id");
+    return await (await _db).insert("timer", map);
+  }
+
+  Future<void> deleteTimer(Timer timer) async {
+    await (await _db).delete("timer", where: "id = ?", whereArgs: [timer.id]);
   }
 }
 
@@ -177,6 +210,15 @@ class Dough {
       "last_fed": lastFed.toIso8601String(),
     };
   }
+
+  Dough copyWith({double? weight}) {
+    return Dough(
+        id: id,
+        name: name,
+        type: type,
+        weight: weight ?? this.weight,
+        lastFed: lastFed);
+  }
 }
 
 class DoughEvent<T extends DoughEventPayload> {
@@ -192,6 +234,17 @@ class DoughEvent<T extends DoughEventPayload> {
       required this.timestamp,
       required this.weightModifier,
       required this.payload});
+
+  Map<String, Object?> toMap(int doughId) {
+    return {
+      "id": this.id,
+      "dough_id": doughId,
+      "type": this.type.name,
+      "timestamp": this.timestamp.toIso8601String(),
+      "weight_modifier": this.weightModifier,
+      "json_payload": jsonEncode(this.payload.toJson()),
+    };
+  }
 }
 
 abstract class DoughEventPayload {
@@ -259,7 +312,7 @@ enum DoughEventType {
 
 class Timer {
   int id;
-  DoughEventType type;
+  TimerType type;
   DateTime timestamp;
   DateTime created;
   int? doughId;
@@ -274,9 +327,39 @@ class Timer {
 
   Timer.fromMap(Map<String, Object?> map)
       : id = map["id"] as int,
-        type = DoughEventType.from(map["type"] as String),
+        type = TimerType.from(map["type"] as String),
         timestamp = DateTime.parse(map["timestamp"] as String),
         created = DateTime.parse(map["created"] as String),
         doughId = map["dough_id"] as int?,
         eventId = map["event_id"] as int?;
+
+  Map<String, Object?> toMap() {
+    return {
+      "id": id,
+      "type": type.name,
+      "timestamp": timestamp.toIso8601String(),
+      "created": created.toIso8601String(),
+      "dough_id": doughId,
+      "event_id": eventId,
+    };
+  }
+}
+
+enum TimerType {
+  finishFeeding(friendlyName: "Teigfütterung abgeschlossen"),
+  nextFeeding(friendlyName: "Nächste Teigfütterung");
+
+  const TimerType({required this.friendlyName});
+  final String friendlyName;
+
+  static TimerType from(String type) {
+    switch (type) {
+      case "finishFeeding":
+        return TimerType.finishFeeding;
+      case "nextFeeding":
+        return TimerType.nextFeeding;
+      default:
+        throw Exception(type);
+    }
+  }
 }

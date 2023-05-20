@@ -15,22 +15,36 @@ class TimerOverview extends StatefulWidget {
 class _TimerOverviewState extends State<TimerOverview> {
   @override
   Widget build(BuildContext context) {
-    List<Timer> timers =
-        context.select((AppState state) => state.timers).values.toList();
+    var appState = context.watch<AppState>();
+    List<Timer> timers = appState.timers.values.toList();
 
     return Column(
       children: timers.map((timer) {
         return PaddedCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Row(
+            mainAxisSize: MainAxisSize.max,
             children: [
-              const Text("Noch"),
-              Text(
-                printDuration(timer.timestamp.difference(DateTime.now()), absolute: false),
-                style:
-                    DefaultTextStyle.of(context).style.apply(fontSizeFactor: 2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text("Noch"),
+                    Text(
+                      printDuration(timer.timestamp.difference(DateTime.now()),
+                          absolute: false),
+                      style: DefaultTextStyle.of(context)
+                          .style
+                          .apply(fontSizeFactor: 2),
+                    ),
+                    Text("bis ${timer.type.friendlyName}")
+                  ],
+                ),
               ),
-              Text("bis ${timer.type.friendlyName}")
+              IconButton(
+                  onPressed: () {
+                    appState.deleteTimer(timer);
+                  },
+                  icon: const Icon(Icons.close))
             ],
           ),
         );
