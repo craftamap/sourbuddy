@@ -64,6 +64,24 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+
+
+    flavorDimensions "default"
+
+    productFlavors {
+        dev {
+            dimension "default"
+            applicationIdSuffix ".dev"
+            resValue "string", "app_name", "sourbuddy dev"
+            versionNameSuffix ".dev"
+        }
+        prod {
+            dimension "default"
+            applicationIdSuffix ""
+            resValue "string", "app_name", "sourbuddy"
+            versionNameSuffix ""
+        }
+    }
 }
 
 flutter {
