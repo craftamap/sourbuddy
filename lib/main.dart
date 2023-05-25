@@ -217,20 +217,20 @@ class _HomePageState extends State<HomePage> {
           ? FloatingActionButton(
               onPressed: () {
                 Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => CreateDoughPage()));
+                    MaterialPageRoute(builder: (context) => const CreateDoughPage()));
               },
-              child: Icon(Icons.add))
+              child: const Icon(Icons.add))
           : FloatingActionButton(
               onPressed: () {
                 context.read<AppState>().addTimer(Timer(
                     id: -1,
                     type: TimerType.finishFeeding,
-                    timestamp: DateTime.now().add(Duration(seconds: 10)),
+                    timestamp: DateTime.now().add(const Duration(seconds: 10)),
                     created: DateTime.now(),
                     doughId: 0,
                     eventId: 0));
               },
-              child: Icon(Icons.add_alarm)),
+              child: const Icon(Icons.add_alarm)),
       bottomNavigationBar:
           BottomNavigationBar(items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(icon: Icon(Icons.science), label: "Doughs"),

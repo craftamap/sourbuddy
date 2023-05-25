@@ -17,6 +17,7 @@ class _TimerOverviewState extends State<TimerOverview> {
   Widget build(BuildContext context) {
     var appState = context.watch<AppState>();
     List<Timer> timers = appState.timers.values.toList();
+    Map<int, Dough> doughs = appState.doughs;
 
     return Column(
       children: timers.map((timer) {
@@ -28,6 +29,12 @@ class _TimerOverviewState extends State<TimerOverview> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (doughs[timer.doughId]?.name != null) ...[
+                      Text(doughs[timer.doughId]?.name ?? 'ur mom',
+                          style: DefaultTextStyle.of(context)
+                              .style
+                              .apply(color: Theme.of(context).hintColor))
+                    ],
                     const Text("Noch"),
                     Text(
                       printDuration(timer.timestamp.difference(DateTime.now()),
