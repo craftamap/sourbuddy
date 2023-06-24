@@ -1,16 +1,6 @@
 # sourbuddy
 
-A new Flutter project.
+<img src="https://github.com/craftamap/sourbuddy/assets/6420231/e563bbaa-3bbe-43d2-bd0a-211437f427a3" height="600px" />
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+sourbuddy is a Android app managing and helping to take care of your 
+sourdoughs.
