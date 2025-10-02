@@ -31,17 +31,12 @@ class _TimerOverviewState extends State<TimerOverview> {
                   children: [
                     if (doughs[timer.doughId]?.name != null) ...[
                       Text(doughs[timer.doughId]?.name ?? 'ur mom',
-                          style: DefaultTextStyle.of(context)
-                              .style
-                              .apply(color: Theme.of(context).hintColor))
+                          style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor))
                     ],
                     const Text("Noch"),
                     Text(
-                      printDuration(timer.timestamp.difference(DateTime.now()),
-                          absolute: false),
-                      style: DefaultTextStyle.of(context)
-                          .style
-                          .apply(fontSizeFactor: 2),
+                      printDuration(timer.timestamp.difference(DateTime.now()), absolute: false),
+                      style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 2),
                     ),
                     Text("bis ${timer.type.friendlyName}")
                   ],

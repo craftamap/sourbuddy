@@ -1,22 +1,30 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-Future<Database> getDatabase() async {
+class DatabaseConnection {
   Future<Database>? db;
-  if (defaultTargetPlatform == TargetPlatform.linux) {
-    sqfliteFfiInit();
-    db = databaseFactoryFfi.openDatabase("./dough.sqlite");
-  } else {
-    final path = "${await getDatabasesPath()}/dough.sqlite";
-    debugPrint("path $path");
-    db = databaseFactory.openDatabase(path);
+
+  Future<Database> get() async {
+    if (db != null) {
+      return db!;
+    }
+    return _init();
   }
 
-  return db.then((db) async {
-    await db.execute('''
+  Future<Database> _init() async {
+    if (defaultTargetPlatform == TargetPlatform.linux) {
+      sqfliteFfiInit();
+      db = databaseFactoryFfi.openDatabase("./dough.sqlite");
+    } else {
+      final path = "${await getDatabasesPath()}/dough.sqlite";
+      debugPrint("path $path");
+      db = databaseFactory.openDatabase(path);
+    }
+
+    return db!.then((db) async {
+      await db.execute('''
 CREATE TABLE IF NOT EXISTS dough (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -25,7 +33,7 @@ CREATE TABLE IF NOT EXISTS dough (
   last_fed TEXT NOT NULL
 )
 ''');
-    await db.execute('''
+      await db.execute('''
 CREATE TABLE IF NOT EXISTS event (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   dough_id INTEGER NOT NULL,
@@ -36,8 +44,8 @@ CREATE TABLE IF NOT EXISTS event (
   FOREIGN KEY(dough_id) REFERENCES dough(id)
 )
 ''');
-    debugPrint('table pls?');
-    await db.execute('''
+      debugPrint('table pls?');
+      await db.execute('''
 CREATE TABLE IF NOT EXISTS timer (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT NOT NULL,                           -- timer type
@@ -50,16 +58,18 @@ CREATE TABLE IF NOT EXISTS timer (
 )
 ''');
 
-    return db;
-  });
+      return db;
+    });
+  }
 }
 
 class DoughRepository {
-  final Future<Database> _db;
-  const DoughRepository({required db}) : _db = db;
+  final DatabaseConnection _db;
+
+  const DoughRepository({required DatabaseConnection db}) : _db = db;
 
   Future<Iterable<Dough>> listDoughs() async {
-    var doughs = await (await _db).query('dough');
+    var doughs = await (await _db.get()).query('dough');
     return doughs.map((doughMap) {
       debugPrint(doughMap.toString());
       return Dough.fromMap(doughMap);
@@ -67,24 +77,19 @@ class DoughRepository {
   }
 
   Future<Iterable<DoughEvent>> listEvents(int doughId) async {
-    var events = await (await _db).query('event',
-        where: '"dough_id" = ?',
-        whereArgs: [doughId],
-        orderBy: 'timestamp desc');
+    var events = await (await _db.get())
+        .query('event', where: '"dough_id" = ?', whereArgs: [doughId], orderBy: 'timestamp desc');
     return events.map((eventMap) {
       var eventType = DoughEventType.from(
         eventMap['type'] as String,
       );
       DoughEventPayload payload;
       if (eventType == DoughEventType.feeding) {
-        payload =
-            Feeding.fromJson(jsonDecode(eventMap['json_payload'] as String));
+        payload = Feeding.fromJson(jsonDecode(eventMap['json_payload'] as String));
       } else if (eventType == DoughEventType.created) {
-        payload =
-            Created.fromJson(jsonDecode(eventMap['json_payload'] as String));
+        payload = Created.fromJson(jsonDecode(eventMap['json_payload'] as String));
       } else if (eventType == DoughEventType.removed) {
-        payload =
-            Created.fromJson(jsonDecode(eventMap['json_payload'] as String));
+        payload = Created.fromJson(jsonDecode(eventMap['json_payload'] as String));
       } else {
         throw 'unknown!';
       }
@@ -100,17 +105,13 @@ class DoughRepository {
   }
 
   Future<int> addEvent(Dough dough, DoughEvent event) async {
-    return (await _db).transaction((txn) async {
+    return (await _db.get()).transaction((txn) async {
       final eventMap = event.toMap(dough.id);
       eventMap.remove("id");
       final eventId = await txn.insert('event', eventMap);
 
-      final oldDough = Dough.fromMap(
-          (await txn.query('dough', where: "id = ?", whereArgs: [dough.id]))
-              .first);
-      final Map<String, dynamic> values = {
-        'weight': oldDough.weight + event.weightModifier
-      };
+      final oldDough = Dough.fromMap((await txn.query('dough', where: "id = ?", whereArgs: [dough.id])).first);
+      final Map<String, dynamic> values = {'weight': oldDough.weight + event.weightModifier};
       if (event.type == DoughEventType.feeding) {
         values['last_fed'] = event.timestamp.toIso8601String();
       }
@@ -128,23 +129,19 @@ class DoughRepository {
   Future<int> addDough(Dough dough) async {
     final mappedDough = dough.toMap();
     mappedDough.remove("id");
-    return await (await _db).insert("dough", mappedDough);
+    return await (await _db.get()).insert("dough", mappedDough);
   }
 
   Future<void> deleteDough(Dough dough) async {
-    await (await _db).delete("dough", where: "id = ?", whereArgs: [dough.id]);
+    await (await _db.get()).delete("dough", where: "id = ?", whereArgs: [dough.id]);
   }
 
   Future<void> deleteEvent(Dough dough, DoughEvent event) async {
-    (await _db).transaction((txn) async {
+    (await _db.get()).transaction((txn) async {
       await txn.delete("event", where: "id = ?", whereArgs: [event.id]);
 
-      final oldDough = Dough.fromMap(
-          (await txn.query('dough', where: "id = ?", whereArgs: [dough.id]))
-              .first);
-      final Map<String, dynamic> values = {
-        'weight': oldDough.weight - event.weightModifier
-      };
+      final oldDough = Dough.fromMap((await txn.query('dough', where: "id = ?", whereArgs: [dough.id])).first);
+      final Map<String, dynamic> values = {'weight': oldDough.weight - event.weightModifier};
       // FIXME: in case a feeding event is deleted, search for last last_fed timestamp and apply it's date
       txn.update(
         'dough',
@@ -157,11 +154,12 @@ class DoughRepository {
 }
 
 class TimerRepository {
-  final Future<Database> _db;
-  const TimerRepository({required db}) : _db = db;
+  final DatabaseConnection _db;
+
+  const TimerRepository({required DatabaseConnection db}) : _db = db;
 
   Future<List<Timer>> listTimers() async {
-    var timers = await (await _db).query('timer');
+    var timers = await (await _db.get()).query('timer');
     return timers.map((timerMap) {
       return Timer.fromMap(timerMap);
     }).toList();
@@ -170,11 +168,11 @@ class TimerRepository {
   Future<int> addTimer(Timer timer) async {
     final map = timer.toMap();
     map.remove("id");
-    return await (await _db).insert("timer", map);
+    return await (await _db.get()).insert("timer", map);
   }
 
   Future<void> deleteTimer(Timer timer) async {
-    await (await _db).delete("timer", where: "id = ?", whereArgs: [timer.id]);
+    await (await _db.get()).delete("timer", where: "id = ?", whereArgs: [timer.id]);
   }
 }
 
@@ -212,12 +210,7 @@ class Dough {
   }
 
   Dough copyWith({double? weight}) {
-    return Dough(
-        id: id,
-        name: name,
-        type: type,
-        weight: weight ?? this.weight,
-        lastFed: lastFed);
+    return Dough(id: id, name: name, type: type, weight: weight ?? this.weight, lastFed: lastFed);
   }
 }
 
@@ -229,11 +222,7 @@ class DoughEvent<T extends DoughEventPayload> {
   final T payload;
 
   DoughEvent(
-      {this.id,
-      required this.type,
-      required this.timestamp,
-      required this.weightModifier,
-      required this.payload});
+      {this.id, required this.type, required this.timestamp, required this.weightModifier, required this.payload});
 
   Map<String, Object?> toMap(int doughId) {
     return {
@@ -253,10 +242,10 @@ abstract class DoughEventPayload {
 
 class Feeding extends DoughEventPayload {
   final Duration duration;
+
   Feeding({required this.duration});
 
-  Feeding.fromJson(Map<String, dynamic> json)
-      : duration = Duration(seconds: json['duration'] ?? 0);
+  Feeding.fromJson(Map<String, dynamic> json) : duration = Duration(seconds: json['duration'] ?? 0);
 
   @override
   Map<String, dynamic> toJson() {
@@ -296,6 +285,7 @@ enum DoughEventType {
   const DoughEventType({required this.friendlyName});
 
   final String friendlyName;
+
   static DoughEventType from(String name) {
     switch (name) {
       case 'feeding':
@@ -317,6 +307,7 @@ class Timer {
   DateTime created;
   int? doughId;
   int? eventId;
+
   Timer(
       {required this.id,
       required this.type,
@@ -350,6 +341,7 @@ enum TimerType {
   nextFeeding(friendlyName: "Nächste Teigfütterung");
 
   const TimerType({required this.friendlyName});
+
   final String friendlyName;
 
   static TimerType from(String type) {

@@ -10,21 +10,28 @@ import 'package:timezone/timezone.dart' as tz;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final db = getDatabase();
-  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  flutterLocalNotificationsPlugin.initialize(const InitializationSettings(
-      android: AndroidInitializationSettings('app_icon')));
-
   tz.initializeTimeZones();
 
-  runApp(ChangeNotifierProvider(
-    create: (ctx) => AppState(
-      doughRepository: DoughRepository(db: db),
-      timerRepository: TimerRepository(db: db),
-      notificationsPlugin: flutterLocalNotificationsPlugin,
-    ),
+  runApp(MultiProvider(
+    providers: [
+      Provider(create: (context) {
+        FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+        flutterLocalNotificationsPlugin.initialize(const InitializationSettings(
+            android: AndroidInitializationSettings('app_icon'),
+            linux: LinuxInitializationSettings(defaultActionName: 'sourbuddy')));
+        return flutterLocalNotificationsPlugin;
+      }),
+      Provider(create: (context) => DatabaseConnection()),
+      Provider(create: (context) => DoughRepository(db: context.read())),
+      Provider(create: (context) => TimerRepository(db: context.read())),
+      ChangeNotifierProvider(
+        create: (context) => AppState(
+          doughRepository: context.read(),
+          timerRepository: context.read(),
+          notificationsPlugin: context.read(),
+        ),
+      )
+    ],
     child: const MyApp(),
   ));
 }
@@ -39,9 +46,9 @@ class AppState extends ChangeNotifier {
   final FlutterLocalNotificationsPlugin _notificationsPlugin;
 
   AppState(
-      {required doughRepository,
-      required timerRepository,
-      required notificationsPlugin})
+      {required DoughRepository doughRepository,
+      required TimerRepository timerRepository,
+      required FlutterLocalNotificationsPlugin notificationsPlugin})
       : _doughRepository = doughRepository,
         _timerRepository = timerRepository,
         _notificationsPlugin = notificationsPlugin {
@@ -50,9 +57,8 @@ class AppState extends ChangeNotifier {
 
   init() async {
     _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestPermission();
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
     loadDoughs();
     loadTimers();
   }
@@ -68,8 +74,7 @@ class AppState extends ChangeNotifier {
   }
 
   loadDoughEvents(int doughId) async {
-    doughEvents[doughId] =
-        (await _doughRepository.listEvents(doughId)).toList();
+    doughEvents[doughId] = (await _doughRepository.listEvents(doughId)).toList();
     notifyListeners();
   }
 
@@ -98,10 +103,7 @@ class AppState extends ChangeNotifier {
     await _doughRepository.addEvent(
         dbDough,
         DoughEvent(
-            type: DoughEventType.created,
-            timestamp: dough.lastFed,
-            weightModifier: initialWeight,
-            payload: Created()));
+            type: DoughEventType.created, timestamp: dough.lastFed, weightModifier: initialWeight, payload: Created()));
     loadDoughs();
     loadDoughEvents(dough.id);
     notifyListeners();
@@ -129,11 +131,8 @@ class AppState extends ChangeNotifier {
         "Teigalarm",
         "",
         tz.TZDateTime.from(timer.timestamp, tz.getLocation("Europe/Berlin")),
-        const NotificationDetails(
-            android: AndroidNotificationDetails("dough_alert", "Teigalarm")),
-        androidScheduleMode: AndroidScheduleMode.inexact,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime);
+        const NotificationDetails(android: AndroidNotificationDetails("dough_alert", "Teigalarm")),
+        androidScheduleMode: AndroidScheduleMode.inexact);
   }
 
   void deleteTimer(Timer timer) async {
@@ -158,18 +157,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SourBuddy',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.brown,
-      ),
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown, brightness: Brightness.dark)),
       home: const HomePage(),
     );
   }
@@ -216,8 +204,7 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: (_navigationIndex == 0)
           ? FloatingActionButton(
               onPressed: () {
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const CreateDoughPage()));
+                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const CreateDoughPage()));
               },
               child: const Icon(Icons.add))
           : FloatingActionButton(
@@ -231,8 +218,7 @@ class _HomePageState extends State<HomePage> {
                     eventId: 0));
               },
               child: const Icon(Icons.add_alarm)),
-      bottomNavigationBar:
-          BottomNavigationBar(items: const <BottomNavigationBarItem>[
+      bottomNavigationBar: BottomNavigationBar(items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(icon: Icon(Icons.science), label: "Doughs"),
         BottomNavigationBarItem(icon: Icon(Icons.timer), label: "Timers"),
       ], currentIndex: _navigationIndex, onTap: _onNavigationItemTapped),

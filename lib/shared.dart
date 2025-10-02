@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-String printDuration(Duration duration,
-    {bool absolute = true, bool seconds = false}) {
+String printDuration(Duration duration, {bool absolute = true, bool seconds = false}) {
   if (absolute) {
     duration = duration.abs();
   }
@@ -15,9 +14,10 @@ String printDuration(Duration duration,
 }
 
 class PaddedCard extends StatelessWidget {
-  Widget child;
-  void Function()? onTap;
-  EdgeInsets? margin;
+  final Widget child;
+  final void Function()? onTap;
+  final EdgeInsets? margin;
+
   PaddedCard({super.key, required this.child, this.onTap, this.margin});
 
   @override

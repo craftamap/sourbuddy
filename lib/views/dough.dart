@@ -14,21 +14,19 @@ class DoughsOverview extends StatelessWidget {
     if (isLoading) {
       return (const CircularProgressIndicator());
     }
-    List<Dough> doughs =
-        context.select((AppState state) => state.doughs.values.toList());
+    List<Dough> doughs = context.select((AppState state) => state.doughs.values.toList());
     debugPrint(doughs.toString());
     var children = doughs.map((dough) {
       return PaddedCard(
         onTap: () {
-          Navigator.of(context).push(MaterialPageRoute(
-              builder: (context) => DoughDetailsPage(doughId: dough.id)));
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => DoughDetailsPage(doughId: dough.id)));
         },
         child: Row(
           children: [
             const SizedBox(
               height: 32,
               width: 32,
-              child: Icon(Icons.science, size: 32),
+              child: ImageIcon(AssetImage("assets/sourdough-icon.png"), size: 32),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -37,9 +35,7 @@ class DoughsOverview extends StatelessWidget {
               children: [
                 Text(
                   dough.name,
-                  style: DefaultTextStyle.of(context)
-                      .style
-                      .apply(fontSizeFactor: 1.2),
+                  style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.2),
                 ),
                 const SizedBox(
                   height: 4,
@@ -51,16 +47,12 @@ class DoughsOverview extends StatelessWidget {
                 Row(children: [
                   Text(
                     "Gewicht: ${dough.weight}g",
-                    style: DefaultTextStyle.of(context)
-                        .style
-                        .apply(color: Theme.of(context).hintColor),
+                    style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
                   ),
                   const Spacer(),
                   Text(
                     "Zuletzt gefüttert: ${printDuration(dough.lastFed.difference(DateTime.now()))}",
-                    style: DefaultTextStyle.of(context)
-                        .style
-                        .apply(color: Theme.of(context).hintColor),
+                    style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
                   )
                 ]),
               ],
@@ -96,13 +88,11 @@ class _DoughDetailsState extends State<DoughDetails> {
       events = LoadingState.loaded;
     }
 
-    var dough =
-        context.select((AppState state) => state.doughs[widget.doughId]);
+    var dough = context.select((AppState state) => state.doughs[widget.doughId]);
     if (dough == null) {
       return Container();
     }
-    var doughEvents =
-        context.select((AppState state) => state.doughEvents[widget.doughId]);
+    var doughEvents = context.select((AppState state) => state.doughEvents[widget.doughId]);
 
     return Column(children: [
       Container(
@@ -121,9 +111,7 @@ class _DoughDetailsState extends State<DoughDetails> {
               children: [
                 Text(
                   dough.name,
-                  style: DefaultTextStyle.of(context)
-                      .style
-                      .apply(fontSizeFactor: 1.2),
+                  style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.2),
                 ),
                 const SizedBox(
                   height: 4,
@@ -135,16 +123,12 @@ class _DoughDetailsState extends State<DoughDetails> {
                 Row(children: [
                   Text(
                     "Gewicht: ${dough.weight}g",
-                    style: DefaultTextStyle.of(context)
-                        .style
-                        .apply(color: Theme.of(context).hintColor),
+                    style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
                   ),
                   const Spacer(),
                   Text(
                     "Zuletzt gefüttert: ${printDuration(dough.lastFed.difference(DateTime.now()))}",
-                    style: DefaultTextStyle.of(context)
-                        .style
-                        .apply(color: Theme.of(context).hintColor),
+                    style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
                   )
                 ]),
               ],
@@ -163,67 +147,57 @@ class _DoughDetailsState extends State<DoughDetails> {
                 children: [
                   Container(
                     margin: const EdgeInsets.only(top: 16, right: 16),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            event.timestamp.toString(),
-                            style: DefaultTextStyle.of(context)
-                                .style
-                                .apply(color: Theme.of(context).hintColor),
-                          ),
-                          Text(
-                            event.type.friendlyName,
-                            style: DefaultTextStyle.of(context)
-                                .style
-                                .apply(fontSizeFactor: 1.1),
-                          ),
-                          if (event.type == DoughEventType.feeding)
-                            Text(
-                              'Ziehzeit: ${(event.payload as Feeding).duration.inHours}h',
-                            ),
-                          Text(
-                            'Gewicht: ${event.weightModifier.isNegative ? '' : '+'}${event.weightModifier}g',
-                          )
-                        ]),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(
+                        event.timestamp.toString(),
+                        style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
+                      ),
+                      Text(
+                        event.type.friendlyName,
+                        style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.1),
+                      ),
+                      if (event.type == DoughEventType.feeding)
+                        Text(
+                          'Ziehzeit: ${(event.payload as Feeding).duration.inHours}h',
+                        ),
+                      Text(
+                        'Gewicht: ${event.weightModifier.isNegative ? '' : '+'}${event.weightModifier}g',
+                      )
+                    ]),
                   ),
-                  PopupMenuButton(
-                      onSelected: (value) {
-                        debugPrint("onSelected");
-                        if (value == 0) {
-                          showDialog<String>(
-                              context: context,
-                              builder: (BuildContext context) => AlertDialog(
-                                    title: const Text('Teig löschen?'),
-                                    content: Text(
-                                        'Möchtest du das Teigevent ${event.id} wirklich löschen?'),
-                                    actions: <Widget>[
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, 'Cancel'),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, 'OK'),
-                                        child: const Text('OK'),
-                                      ),
-                                    ],
-                                  )).then((result) {
-                            if ((result ?? "") == "OK") {
-                              context
-                                  .read<AppState>()
-                                  .deleteDoughEvent(dough, event);
-                            }
-                          });
-                        }
-                      },
-                      padding: const EdgeInsets.all(0),
-                      itemBuilder: (context) {
-                        return <PopupMenuEntry<int>>[
-                          const PopupMenuItem(value: 0, child: Text("Delete"))
-                        ];
-                      }),
+                  if (event.type != DoughEventType.created)
+                    PopupMenuButton(
+                        onSelected: (value) {
+                          debugPrint("onSelected");
+                          if (value == 0) {
+                            showDialog<String>(
+                                context: context,
+                                builder: (BuildContext context) => AlertDialog(
+                                      title: const Text('Teig löschen?'),
+                                      content: Text('Möchtest du das Teigevent ${event.id} wirklich löschen?'),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, 'Cancel'),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, 'OK'),
+                                          child: const Text('OK'),
+                                        ),
+                                      ],
+                                    )).then((result) {
+                              if ((result ?? "") == "OK") {
+                                context.read<AppState>().deleteDoughEvent(dough, event);
+                              }
+                            });
+                          }
+                        },
+                        padding: const EdgeInsets.all(0),
+                        itemBuilder: (context) {
+                          return <PopupMenuEntry<int>>[
+                            PopupMenuItem(value: 0, child: Row(children: [Icon(Icons.delete), const Text("Löschen")]))
+                          ];
+                        }),
                 ]));
       }).toList()))
     ]);
@@ -232,6 +206,7 @@ class _DoughDetailsState extends State<DoughDetails> {
 
 class DoughDetailsPage extends StatelessWidget {
   final int doughId;
+
   const DoughDetailsPage({super.key, required this.doughId});
 
   @override
@@ -251,8 +226,8 @@ class DoughDetailsPage extends StatelessWidget {
                     context: context,
                     builder: (BuildContext context) => AlertDialog(
                           title: const Text('Teig löschen?'),
-                          content: Text(
-                              'Möchtest du den Teig "${dough.name}" und die zugehörigen Events wirklich löschen?'),
+                          content:
+                              Text('Möchtest du den Teig "${dough.name}" und die zugehörigen Events wirklich löschen?'),
                           actions: <Widget>[
                             TextButton(
                               onPressed: () => Navigator.pop(context, 'Cancel'),
@@ -272,13 +247,7 @@ class DoughDetailsPage extends StatelessWidget {
               }
             }, itemBuilder: (context) {
               return [
-                PopupMenuItem<int>(
-                    value: 0,
-                    child: Row(children: [
-                      Icon(Icons.delete,
-                          color: Theme.of(context).primaryColorDark),
-                      Text("Löschen")
-                    ]))
+                PopupMenuItem<int>(value: 0, child: Row(children: [Icon(Icons.delete), const Text("Löschen")]))
               ];
             })
           ],
@@ -286,9 +255,8 @@ class DoughDetailsPage extends StatelessWidget {
         body: DoughDetails(doughId: doughId),
         floatingActionButton: FloatingActionButton(
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) =>
-                      CreateDoughEventPage(doughId: dough.id)));
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (context) => CreateDoughEventPage(doughId: dough.id)));
             },
             child: const Icon(Icons.add)));
   }
@@ -296,14 +264,14 @@ class DoughDetailsPage extends StatelessWidget {
 
 class CreateDoughEvent extends StatefulWidget {
   final int doughId;
+
   const CreateDoughEvent({super.key, required this.doughId});
 
   @override
   State<CreateDoughEvent> createState() => _CreateDoughEventState();
 }
 
-Future<DateTime?> pickDateTime(BuildContext context,
-    {DateTime? current}) async {
+Future<DateTime?> pickDateTime(BuildContext context, {DateTime? current}) async {
   final date = await showDatePicker(
       context: context,
       initialDate: current ?? DateTime.now(),
@@ -313,9 +281,7 @@ Future<DateTime?> pickDateTime(BuildContext context,
     return null;
   }
   if (context.mounted) {
-    final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(current ?? DateTime.now()));
+    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(current ?? DateTime.now()));
     if (time == null) {
       return null;
     }
@@ -325,29 +291,21 @@ Future<DateTime?> pickDateTime(BuildContext context,
 }
 
 class _CreateDoughEventState extends State<CreateDoughEvent> {
-  final TextEditingController _doughRemovedC =
-      TextEditingController(text: "0.0 g");
-  final TextEditingController _weightExistingDoughC =
-      TextEditingController(text: "0.0 g");
-  final TextEditingController _weightFlourC =
-      TextEditingController(text: "0.0 g");
-  final TextEditingController _weightWaterC =
-      TextEditingController(text: "0.0 g");
-  final TextEditingController _riseTimeInHoursC =
-      TextEditingController(text: "12 h");
+  final TextEditingController _doughRemovedC = TextEditingController(text: "0.0 g");
+  final TextEditingController _weightExistingDoughC = TextEditingController(text: "0.0 g");
+  final TextEditingController _weightFlourC = TextEditingController(text: "0.0 g");
+  final TextEditingController _weightWaterC = TextEditingController(text: "0.0 g");
+  final TextEditingController _riseTimeInHoursC = TextEditingController(text: "12 h");
   final TextEditingController _timerInDaysC = TextEditingController(text: "7");
 
   @override
   Widget build(BuildContext context) {
     final formData = context.watch<CreateDoughEventFormData>();
-    final dough =
-        context.select((AppState state) => state.doughs[widget.doughId]);
+    final dough = context.select((AppState state) => state.doughs[widget.doughId]);
 
     var feedingNewWeight = 0.0;
     if (formData.doughEventType == DoughEventType.feeding) {
-      feedingNewWeight = formData.weightExistingDough +
-          formData.weightFlour +
-          formData.weightWater;
+      feedingNewWeight = formData.weightExistingDough + formData.weightFlour + formData.weightWater;
     }
 
     return Container(
@@ -371,15 +329,11 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
             decoration: const InputDecoration(labelText: 'Eventtyp'),
             isExpanded: true,
             onChanged: (eventType) {
-              context.read<CreateDoughEventFormData>().doughEventType =
-                  eventType!;
+              context.read<CreateDoughEventFormData>().doughEventType = eventType!;
             },
             items: const [
-              DropdownMenuItem(
-                  value: DoughEventType.feeding, child: Text('Teig füttern')),
-              DropdownMenuItem(
-                  value: DoughEventType.removed,
-                  child: Text('Teil des Teiges entfernen')),
+              DropdownMenuItem(value: DoughEventType.feeding, child: Text('Teig füttern')),
+              DropdownMenuItem(value: DoughEventType.removed, child: Text('Teil des Teiges entfernen')),
             ],
           ),
           const SizedBox(height: 16),
@@ -388,9 +342,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
               textAlign: TextAlign.center,
               controller: _doughRemovedC,
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))
-              ],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
               decoration: const InputDecoration(labelText: 'Gewicht entfernt'),
               onChanged: (value) {
                 double newWeight;
@@ -400,8 +352,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
                   newWeight = 0.0;
                 }
                 debugPrint("$value, $newWeight");
-                context.read<CreateDoughEventFormData>().removedWeight =
-                    newWeight;
+                context.read<CreateDoughEventFormData>().removedWeight = newWeight;
                 _doughRemovedC.value = _doughRemovedC.value.copyWith(
                   text: "$newWeight g",
                 );
@@ -409,19 +360,15 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
             ),
             const SizedBox(height: 16),
             Text("Aktuelles Gewicht: ${dough?.weight} g"),
-            Text(
-                "Neues Gewicht: ${(dough?.weight ?? 0) - formData.removedWeight} g"),
+            Text("Neues Gewicht: ${(dough?.weight ?? 0) - formData.removedWeight} g"),
           ],
           if (formData.doughEventType == DoughEventType.feeding) ...[
             TextFormField(
               textAlign: TextAlign.center,
               controller: _weightExistingDoughC,
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))
-              ],
-              decoration: const InputDecoration(
-                  labelText: 'Teil des bisherigen Teiges'),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
+              decoration: const InputDecoration(labelText: 'Teil des bisherigen Teiges'),
               onChanged: (value) {
                 double weightExistingDough;
                 try {
@@ -429,10 +376,8 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
                 } catch (e) {
                   weightExistingDough = 0.0;
                 }
-                context.read<CreateDoughEventFormData>().weightExistingDough =
-                    weightExistingDough;
-                _weightExistingDoughC.value =
-                    _weightExistingDoughC.value.copyWith(
+                context.read<CreateDoughEventFormData>().weightExistingDough = weightExistingDough;
+                _weightExistingDoughC.value = _weightExistingDoughC.value.copyWith(
                   text: "$weightExistingDough g",
                 );
               },
@@ -441,9 +386,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
               textAlign: TextAlign.center,
               controller: _weightFlourC,
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))
-              ],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
               decoration: const InputDecoration(labelText: 'Mehl'),
               onChanged: (value) {
                 double weighFlour;
@@ -452,8 +395,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
                 } catch (e) {
                   weighFlour = 0.0;
                 }
-                context.read<CreateDoughEventFormData>().weightFlour =
-                    weighFlour;
+                context.read<CreateDoughEventFormData>().weightFlour = weighFlour;
                 _weightFlourC.value = _weightFlourC.value.copyWith(
                   text: "$weighFlour g",
                 );
@@ -463,9 +405,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
               textAlign: TextAlign.center,
               controller: _weightWaterC,
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))
-              ],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
               decoration: const InputDecoration(labelText: 'Wasser'),
               onChanged: (value) {
                 double weightWater;
@@ -474,8 +414,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
                 } catch (e) {
                   weightWater = 0.0;
                 }
-                context.read<CreateDoughEventFormData>().weightWater =
-                    weightWater;
+                context.read<CreateDoughEventFormData>().weightWater = weightWater;
                 _weightWaterC.value = _weightWaterC.value.copyWith(
                   text: "$weightWater g",
                 );
@@ -485,9 +424,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
               textAlign: TextAlign.center,
               controller: _riseTimeInHoursC,
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))
-              ],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))],
               decoration: const InputDecoration(labelText: 'Ziehzeit'),
               onChanged: (value) {
                 // if the old value is just 0, remove the last zero, so zeros can be overwritten
@@ -502,8 +439,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
               },
             ),
             const SizedBox(height: 16),
-            Text(
-                "Übrig vom bisherigen Teig: ${(dough?.weight ?? 0.0) - formData.weightExistingDough} g"),
+            Text("Übrig vom bisherigen Teig: ${(dough?.weight ?? 0.0) - formData.weightExistingDough} g"),
             Text("Neues Gewicht: $feedingNewWeight g"),
             const SizedBox(height: 16),
             Row(
@@ -521,8 +457,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
                     onChanged: (value) {
                       final v = int.tryParse(value) ?? 0;
                       formData.timerInDays = v;
-                      _timerInDaysC.value =
-                          _timerInDaysC.value.copyWith(text: "$v");
+                      _timerInDaysC.value = _timerInDaysC.value.copyWith(text: "$v");
                     },
                     textAlign: TextAlign.center,
                     decoration: const InputDecoration(
@@ -542,63 +477,81 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
 
 class CreateDoughEventFormData extends ChangeNotifier {
   DateTime? _timestamp;
+
   DateTime? get timestamp => _timestamp;
+
   set timestamp(DateTime? value) {
     _timestamp = value;
     notifyListeners();
   }
 
   DoughEventType _doughEventType = DoughEventType.removed;
+
   DoughEventType get doughEventType => _doughEventType;
+
   set doughEventType(DoughEventType value) {
     _doughEventType = value;
     notifyListeners();
   }
 
   double _removedWeight = 0;
+
   double get removedWeight => _removedWeight;
+
   set removedWeight(double value) {
     _removedWeight = value;
     notifyListeners();
   }
 
   double _weightExistingDough = 0;
+
   double get weightExistingDough => _weightExistingDough;
+
   set weightExistingDough(double value) {
     _weightExistingDough = value;
     notifyListeners();
   }
 
   double _weightFlour = 0;
+
   double get weightFlour => _weightFlour;
+
   set weightFlour(double value) {
     _weightFlour = value;
     notifyListeners();
   }
 
   double _weightWater = 0;
+
   double get weightWater => _weightWater;
+
   set weightWater(double value) {
     _weightWater = value;
     notifyListeners();
   }
 
   bool _createTimer = true;
+
   bool get createTimer => _createTimer;
+
   set createTimer(bool value) {
     _createTimer = value;
     notifyListeners();
   }
 
   int _timerInDays = 7;
+
   int get timerInDays => _timerInDays;
+
   set timerInDays(int value) {
     _timerInDays = value;
     notifyListeners();
   }
 
   int _riseTimeInHours = 12;
+
   int get riseTimeInHours => _riseTimeInHours;
+
   set riseTimeInHours(int value) {
     _riseTimeInHours = value;
     notifyListeners();
@@ -607,14 +560,11 @@ class CreateDoughEventFormData extends ChangeNotifier {
 
 class CreateDoughEventPage extends StatelessWidget {
   final int doughId;
+
   const CreateDoughEventPage({super.key, required this.doughId});
 
   @override
   Widget build(BuildContext context) {
-    final ButtonStyle style = TextButton.styleFrom(
-      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-    );
-
     return ChangeNotifierProvider(
       create: (_) {
         return CreateDoughEventFormData();
@@ -625,7 +575,6 @@ class CreateDoughEventPage extends StatelessWidget {
             title: const Text('Create Event'),
             actions: [
               TextButton(
-                  style: style,
                   onPressed: () {
                     final appState = ctx.read<AppState>();
                     final dough = appState.doughs[doughId]!;
@@ -638,8 +587,7 @@ class CreateDoughEventPage extends StatelessWidget {
                               dough,
                               DoughEvent<Removed>(
                                   type: DoughEventType.removed,
-                                  timestamp:
-                                      formData.timestamp ?? DateTime.now(),
+                                  timestamp: formData.timestamp ?? DateTime.now(),
                                   payload: Removed(),
                                   weightModifier: -removedWeight))
                           .then((_) {
@@ -647,26 +595,21 @@ class CreateDoughEventPage extends StatelessWidget {
                       });
                     } else if (eventType == DoughEventType.feeding) {
                       final weightModifier = -(dough.weight -
-                          (formData.weightExistingDough +
-                              formData.weightFlour +
-                              formData.weightWater));
+                          (formData.weightExistingDough + formData.weightFlour + formData.weightWater));
                       appState
                           .addDoughEvent(
                               dough,
                               DoughEvent<Feeding>(
                                   type: DoughEventType.feeding,
-                                  timestamp:
-                                      formData.timestamp ?? DateTime.now(),
-                                  payload: Feeding(
-                                      duration: Duration(
-                                          hours: formData.riseTimeInHours)),
+                                  timestamp: formData.timestamp ?? DateTime.now(),
+                                  payload: Feeding(duration: Duration(hours: formData.riseTimeInHours)),
                                   weightModifier: weightModifier))
                           .then((_) {
                         return appState.addTimer(Timer(
                             id: -1,
                             type: TimerType.finishFeeding,
-                            timestamp: (formData.timestamp ?? DateTime.now())
-                                .add(Duration(hours: formData.riseTimeInHours)),
+                            timestamp:
+                                (formData.timestamp ?? DateTime.now()).add(Duration(hours: formData.riseTimeInHours)),
                             created: (formData.timestamp ?? DateTime.now()),
                             doughId: dough.id,
                             eventId: -1));
@@ -675,8 +618,8 @@ class CreateDoughEventPage extends StatelessWidget {
                           return appState.addTimer(Timer(
                               id: -1,
                               type: TimerType.nextFeeding,
-                              timestamp: (formData.timestamp ?? DateTime.now())
-                                  .add(Duration(days: formData.timerInDays)),
+                              timestamp:
+                                  (formData.timestamp ?? DateTime.now()).add(Duration(days: formData.timerInDays)),
                               created: (formData.timestamp ?? DateTime.now()),
                               doughId: dough.id,
                               eventId: -1));
@@ -701,9 +644,6 @@ class CreateDoughPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ButtonStyle style = TextButton.styleFrom(
-      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-    );
     return ChangeNotifierProvider(
       create: (_) {
         final appState = context.read<AppState>();
@@ -715,7 +655,6 @@ class CreateDoughPage extends StatelessWidget {
             title: const Text('Neuer Teig'),
             actions: [
               TextButton(
-                  style: style,
                   onPressed: () {
                     context.read<CreateDoughFormData>().addDough();
                     Navigator.of(context).pop();
@@ -736,53 +675,58 @@ class CreateDoughFormData extends ChangeNotifier {
   CreateDoughFormData({required this.appState});
 
   addDough() {
-    appState.addDough(
-        Dough(
-            id: -1,
-            name: name,
-            type: type,
-            weight: 0,
-            lastFed: _ownedTimestamp),
-        weight);
+    appState.addDough(Dough(id: -1, name: name, type: type, weight: 0, lastFed: _ownedTimestamp), weight);
   }
 
   String _name = "";
+
   String get name => _name;
+
   set name(String name) {
     _name = name;
     notifyListeners();
   }
 
   String _type = "";
+
   String get type => _type;
+
   set type(String type) {
     _type = type;
     notifyListeners();
   }
 
   DateTime _ownedTimestamp = DateTime.now();
+
   DateTime get ownedTimestamp => _ownedTimestamp;
+
   set ownedTimestamp(DateTime ownedTimestamp) {
     _ownedTimestamp = ownedTimestamp;
     notifyListeners();
   }
 
   double _weight = 0.0;
+
   double get weight => _weight;
+
   set weight(double weight) {
     _weight = weight;
     notifyListeners();
   }
 
   bool _createTimer = true;
+
   bool get createTimer => _createTimer;
+
   set createTimer(bool v) {
     _createTimer = v;
     notifyListeners();
   }
 
   DateTime _nextFeedTimestamp = DateTime.now().add(const Duration(days: 7));
+
   DateTime get nextFeedTimestamp => _nextFeedTimestamp;
+
   set nextFeedTimestamp(DateTime v) {
     _nextFeedTimestamp = v;
     notifyListeners();
@@ -798,6 +742,7 @@ class CreateDoughForm extends StatefulWidget {
 
 class _CreateDoughFormState extends State<CreateDoughForm> {
   final _weightC = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -831,12 +776,10 @@ class _CreateDoughFormState extends State<CreateDoughForm> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                    "Du hast deinen Sauerteig seit: ${formData.ownedTimestamp}"),
+                Text("Du hast deinen Sauerteig seit: ${formData.ownedTimestamp}"),
                 IconButton(
                     onPressed: () {
-                      pickDateTime(context, current: formData.ownedTimestamp)
-                          .then((datetime) {
+                      pickDateTime(context, current: formData.ownedTimestamp).then((datetime) {
                         formData.ownedTimestamp = datetime ?? DateTime.now();
                       });
                     },
@@ -846,9 +789,7 @@ class _CreateDoughFormState extends State<CreateDoughForm> {
             TextFormField(
               decoration: const InputDecoration(labelText: 'Aktuelles Gewicht'),
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))
-              ],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
               controller: _weightC,
               onChanged: (v) {
                 double newWeight = 0.0;
@@ -873,13 +814,10 @@ class _CreateDoughFormState extends State<CreateDoughForm> {
                     onChanged: (v) {
                       formData.createTimer = v ?? false;
                     }),
-                Expanded(
-                    child: Text(
-                        "Erinnere mich am ${formData.nextFeedTimestamp} den Teig zu füttern")),
+                Expanded(child: Text("Erinnere mich am ${formData.nextFeedTimestamp} den Teig zu füttern")),
                 IconButton(
                     onPressed: () {
-                      pickDateTime(context, current: formData.nextFeedTimestamp)
-                          .then((datetime) {
+                      pickDateTime(context, current: formData.nextFeedTimestamp).then((datetime) {
                         formData.nextFeedTimestamp = datetime ?? DateTime.now();
                       });
                     },
