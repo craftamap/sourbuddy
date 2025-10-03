@@ -28,7 +28,7 @@ class DoughsOverview extends StatelessWidget {
             const SizedBox(
               height: 32,
               width: 32,
-              child: const SourdoughIcon(size: 32),
+              child: SourdoughIcon(size: 32),
             ),
             const SizedBox(width: 16),
             Expanded(

@@ -57,7 +57,7 @@ class AppState extends ChangeNotifier {
     init();
   }
 
-  init() async {
+  void init() async {
     _notificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
@@ -65,7 +65,7 @@ class AppState extends ChangeNotifier {
     loadTimers();
   }
 
-  loadDoughs() async {
+  Future<void> loadDoughs() async {
     var doughs = await _doughRepository.listDoughs();
     this.doughs.clear();
     for (Dough dough in doughs) {
@@ -75,7 +75,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  loadDoughEvents(int doughId) async {
+  Future<void> loadDoughEvents(int doughId) async {
     doughEvents[doughId] = (await _doughRepository.listEvents(doughId)).toList();
     notifyListeners();
   }
@@ -88,7 +88,7 @@ class AppState extends ChangeNotifier {
     return id;
   }
 
-  loadTimers() async {
+  Future<void> loadTimers() async {
     final timers = await _timerRepository.listTimers();
     this.timers.clear();
     for (Timer timer in timers) {

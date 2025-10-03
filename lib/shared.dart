@@ -18,7 +18,7 @@ class PaddedCard extends StatelessWidget {
   final void Function()? onTap;
   final EdgeInsets? margin;
 
-  PaddedCard({super.key, required this.child, this.onTap, this.margin});
+  const PaddedCard({super.key, required this.child, this.onTap, this.margin});
 
   @override
   Widget build(BuildContext context) {

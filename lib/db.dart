@@ -226,12 +226,12 @@ class DoughEvent<T extends DoughEventPayload> {
 
   Map<String, Object?> toMap(int doughId) {
     return {
-      "id": this.id,
+      "id": id,
       "dough_id": doughId,
-      "type": this.type.name,
-      "timestamp": this.timestamp.toIso8601String(),
-      "weight_modifier": this.weightModifier,
-      "json_payload": jsonEncode(this.payload.toJson()),
+      "type": type.name,
+      "timestamp": timestamp.toIso8601String(),
+      "weight_modifier": weightModifier,
+      "json_payload": jsonEncode(payload.toJson()),
     };
   }
 }

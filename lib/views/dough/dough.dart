@@ -6,7 +6,6 @@ import 'package:sourbuddy/icons/icons.dart';
 import 'package:sourbuddy/main.dart';
 import 'package:sourbuddy/shared.dart';
 
-
 class DoughDetails extends StatefulWidget {
   final int doughId;
 
@@ -17,15 +16,16 @@ class DoughDetails extends StatefulWidget {
 }
 
 class _DoughDetailsState extends State<DoughDetails> {
-  LoadingState events = LoadingState.notLoaded;
+  LoadingState eventsLoadingState = LoadingState.notLoaded;
 
   @override
   Widget build(BuildContext context) {
-    if (events == LoadingState.notLoaded) {
-      debugPrint('foo');
-      events = LoadingState.loading;
-      context.read<AppState>().loadDoughEvents(widget.doughId);
-      events = LoadingState.loaded;
+    AppState appState = context.read<AppState>();
+
+    if (eventsLoadingState == LoadingState.notLoaded) {
+      eventsLoadingState = LoadingState.loading;
+      appState.loadDoughEvents(widget.doughId);
+      eventsLoadingState = LoadingState.loaded;
     }
 
     var dough = context.select((AppState state) => state.doughs[widget.doughId]);
@@ -127,7 +127,9 @@ class _DoughDetailsState extends State<DoughDetails> {
                                       ],
                                     )).then((result) {
                               if ((result ?? "") == "OK") {
-                                context.read<AppState>().deleteDoughEvent(dough, event);
+                                if (context.mounted) {
+                                  context.read<AppState>().deleteDoughEvent(dough, event);
+                                }
                               }
                             });
                           }
@@ -179,7 +181,7 @@ class DoughDetailsPage extends StatelessWidget {
                             ),
                           ],
                         )).then((result) {
-                  if ((result ?? "") == "OK") {
+                  if ((result ?? "") == "OK" && context.mounted) {
                     Navigator.of(context).pop();
                     context.read<AppState>().deleteDough(dough);
                   }
@@ -265,7 +267,7 @@ class _CreateDoughEventState extends State<CreateDoughEvent> {
                 icon: Icon(Icons.calendar_month))
           ]),
           DropdownButtonFormField(
-            value: context.watch<CreateDoughEventFormData>().doughEventType,
+            initialValue: context.watch<CreateDoughEventFormData>().doughEventType,
             decoration: const InputDecoration(labelText: 'Eventtyp'),
             isExpanded: true,
             onChanged: (eventType) {
@@ -531,7 +533,9 @@ class CreateDoughEventPage extends StatelessWidget {
                                   payload: Removed(),
                                   weightModifier: -removedWeight))
                           .then((_) {
-                        Navigator.of(ctx).pop();
+                        if (ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                        }
                       });
                     } else if (eventType == DoughEventType.feeding) {
                       final weightModifier = -(dough.weight -
@@ -565,7 +569,9 @@ class CreateDoughEventPage extends StatelessWidget {
                               eventId: -1));
                         }
                       }).then((_) {
-                        Navigator.of(ctx).pop();
+                        if (ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                        }
                       });
                     }
                   },
@@ -614,7 +620,7 @@ class CreateDoughFormData extends ChangeNotifier {
 
   CreateDoughFormData({required this.appState});
 
-  addDough() {
+  void addDough() {
     appState.addDough(Dough(id: -1, name: name, type: type, weight: 0, lastFed: _ownedTimestamp), weight);
   }
 
