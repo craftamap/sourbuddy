@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:sourbuddy/db.dart';
-import 'package:sourbuddy/views/dough.dart';
+import 'package:sourbuddy/icons/icons.dart';
+import 'package:sourbuddy/views/dough/dough.dart';
+import 'package:sourbuddy/views/dough/doughs_overview.dart';
 import 'package:sourbuddy/views/timer.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -207,19 +209,9 @@ class _HomePageState extends State<HomePage> {
                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const CreateDoughPage()));
               },
               child: const Icon(Icons.add))
-          : FloatingActionButton(
-              onPressed: () {
-                context.read<AppState>().addTimer(Timer(
-                    id: -1,
-                    type: TimerType.finishFeeding,
-                    timestamp: DateTime.now().add(const Duration(seconds: 10)),
-                    created: DateTime.now(),
-                    doughId: 0,
-                    eventId: 0));
-              },
-              child: const Icon(Icons.add_alarm)),
+          : null,
       bottomNavigationBar: BottomNavigationBar(items: const <BottomNavigationBarItem>[
-        BottomNavigationBarItem(icon: Icon(Icons.science), label: "Doughs"),
+        BottomNavigationBarItem(icon: SourdoughIcon(), label: "Doughs"),
         BottomNavigationBarItem(icon: Icon(Icons.timer), label: "Timers"),
       ], currentIndex: _navigationIndex, onTap: _onNavigationItemTapped),
     );

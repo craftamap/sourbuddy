@@ -19,7 +19,7 @@ class _TimerOverviewState extends State<TimerOverview> {
     List<Timer> timers = appState.timers.values.toList();
     Map<int, Dough> doughs = appState.doughs;
 
-    return Column(
+    return ListView(
       children: timers.map((timer) {
         return PaddedCard(
           child: Row(
