@@ -5,7 +5,7 @@ import 'package:sourbuddy/main.dart';
 import 'package:sourbuddy/shared.dart';
 
 import '../../icons/icons.dart';
-import 'dough.dart';
+import 'dough_details.dart';
 
 class DoughsOverview extends StatelessWidget {
   const DoughsOverview({super.key});

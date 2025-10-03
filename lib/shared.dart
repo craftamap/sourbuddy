@@ -35,3 +35,23 @@ class PaddedCard extends StatelessWidget {
     );
   }
 }
+
+
+Future<DateTime?> pickDateTime(BuildContext context, {DateTime? current}) async {
+  final date = await showDatePicker(
+      context: context,
+      initialDate: current ?? DateTime.now(),
+      firstDate: DateTime.fromMillisecondsSinceEpoch(0),
+      lastDate: DateTime.parse("2099-12-31"));
+  if (date == null) {
+    return null;
+  }
+  if (context.mounted) {
+    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(current ?? DateTime.now()));
+    if (time == null) {
+      return null;
+    }
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute, 0);
+  }
+  return null;
+}

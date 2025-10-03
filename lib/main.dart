@@ -3,7 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:sourbuddy/db.dart';
 import 'package:sourbuddy/icons/icons.dart';
-import 'package:sourbuddy/views/dough/dough.dart';
+import 'package:sourbuddy/views/dough/create_dough.dart';
 import 'package:sourbuddy/views/dough/doughs_overview.dart';
 import 'package:sourbuddy/views/timer.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
