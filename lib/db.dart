@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class DatabaseConnection {
@@ -14,13 +15,18 @@ class DatabaseConnection {
   }
 
   Future<Database> _init() async {
-    if (defaultTargetPlatform == TargetPlatform.linux) {
-      sqfliteFfiInit();
-      db = databaseFactoryFfi.openDatabase("./dough.sqlite");
-    } else {
+    // sqflite supports android, iOS and macOS
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
       final path = "${await getDatabasesPath()}/dough.sqlite";
-      debugPrint("path $path");
       db = databaseFactory.openDatabase(path);
+    } else {
+      // for linux (and windows, I guess), we're choosing sqflite_common_ffi
+      sqfliteFfiInit();
+      final path = "${(await getApplicationSupportDirectory()).path}/dough.sqlite";
+      print("path: ${path}");
+      db = databaseFactoryFfi.openDatabase(path);
     }
 
     return db!.then((db) async {
