@@ -5,7 +5,7 @@ import 'package:sourbuddy/main.dart';
 import 'package:sourbuddy/shared.dart';
 
 import '../../icons/icons.dart';
-import 'dough_details.dart';
+import 'dough_details/dough_details.dart';
 
 class DoughsOverview extends StatelessWidget {
   const DoughsOverview({super.key});
@@ -25,46 +25,36 @@ class DoughsOverview extends StatelessWidget {
         },
         child: Row(
           children: [
-            const SizedBox(
-              height: 32,
-              width: 32,
-              child: SourdoughIcon(size: 32),
-            ),
+            const SizedBox(height: 32, width: 32, child: SourdoughIcon(size: 32)),
             const SizedBox(width: 16),
             Expanded(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dough.name,
-                  style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.2),
-                ),
-                const SizedBox(
-                  height: 4,
-                ),
-                Text(dough.type),
-                const SizedBox(
-                  height: 4,
-                ),
-                Row(children: [
-                  Text(
-                    "Gewicht: ${dough.weight}g",
-                    style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(dough.name, style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.2)),
+                  const SizedBox(height: 4),
+                  Text(dough.type),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        "Gewicht: ${dough.weight}g",
+                        style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
+                      ),
+                      const Spacer(),
+                      Text(
+                        "Zuletzt gefüttert: ${printDuration(dough.lastFed.difference(DateTime.now()))}",
+                        style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  Text(
-                    "Zuletzt gefüttert: ${printDuration(dough.lastFed.difference(DateTime.now()))}",
-                    style: DefaultTextStyle.of(context).style.apply(color: Theme.of(context).hintColor),
-                  )
-                ]),
-              ],
-            ))
+                ],
+              ),
+            ),
           ],
         ),
       );
     }).toList();
-    return ListView(
-      children: children,
-    );
+    return ListView(children: children);
   }
 }

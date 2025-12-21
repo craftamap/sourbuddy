@@ -98,3 +98,9 @@ flutter:
   assets:
     - assets/sourdough-icon.svg
     - assets/sourdough-icon.png
+
+# needed with the latest version of sqlite3, to run on linux. this might cause problems on android?
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
